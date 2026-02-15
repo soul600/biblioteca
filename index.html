@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biblioteca Online - Controle de Prazos</title>
+    <style>
+        :root { --primary: #2c3e50; --danger: #e74c3c; --success: #27ae60; --warning: #f1c40f; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #ecf0f1; padding: 20px; color: var(--primary); }
+        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .form-group { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 6px; min-width: 200px; }
+        button { padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-add { background: var(--primary); color: white; }
+        .btn-add:hover { background: #1a252f; }
+        .btn-renovar { background: var(--warning); color: #333; font-size: 0.8em; }
+        .btn-renovar:hover { background: #d4ac0d; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; }
+        .vencido { color: var(--danger); font-weight: bold; background: #fdeaea; padding: 4px 8px; border-radius: 4px; }
+        .em-dia { color: var(--success); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Sistema de Biblioteca (Prazo: 7 dias)</h2>
+    
+    <div class="form-group">
+        <input type="text" id="aluno" placeholder="Nome do Aluno">
+        <input type="text" id="livro" placeholder="Nome do Livro">
+        <button class="btn-add" onclick="adicionarEmprestimo()">Registrar</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Aluno</th>
+                <th>Livro</th>
+                <th>Data Emprerstimo</th>
+                <th>Status</th>
+                <th>escolhas</th>
+            </tr>
+        </thead>
+        <tbody id="tabelaCorpo"></tbody>
+    </table>
+</div>
+
+<script>
+    // Carrega os dados do LocalStorage ao abrir a página
+    let emprestimos = JSON.parse(localStorage.getItem('biblioteca_dados')) || [];
+
+    function salvarDados() {
+        localStorage.setItem('biblioteca_dados', JSON.stringify(emprestimos));
+        atualizarTabela();
+    }
+
+    function adicionarEmprestimo() {
+        const aluno = document.getElementById('aluno').value;
+        const livro = document.getElementById('livro').value;
+
+        if (aluno && livro) {
+            const novo = {
+                id: Date.now(),
+                aluno: aluno,
+                livro: livro,
+                data: new Date().toISOString() // Salva como string para o LocalStorage
+            };
+            emprestimos.push(novo);
+            salvarDados();
+            document.getElementById('aluno').value = '';
+            document.getElementById('livro').value = '';
+        }
+    }
+
+    function renovar(id) {
+        const index = emprestimos.findIndex(e => e.id === id);
+        if (index !== -1) {
+            emprestimos[index].data = new Date().toISOString(); // Reseta para hoje
+            salvarDados();
+        }
+    }
+
+    function deletar(id) {
+        emprestimos = emprestimos.filter(e => e.id !== id);
+        salvarDados();
+    }
+
+    function atualizarTabela() {
+        const corpo = document.getElementById('tabelaCorpo');
+        corpo.innerHTML = '';
+
+        const hoje = new Date();
+
+        emprestimos.forEach(item => {
+            const dataEmprestimo = new Date(item.data);
+            const diffTempo = hoje - dataEmprestimo;
+            const diffDias = Math.floor(diffTempo / (1000 * 60 * 60 * 24));
+            
+            // REGRA: Vence após 7 dias
+            const diasParaVencer = 7;
+            const vencido = diffDias >= diasParaVencer;
+
+            const statusHTML = vencido 
+                ? `<span class="vencido">VENCIDO (${diffDias} dias)</span>` 
+                : `<span class="em-dia">Em dia (${diasParaVencer - diffDias} dias restantes)</span>`;
+
+            corpo.innerHTML += `
+                <tr>
+                    <td>${item.aluno}</td>
+                    <td>${item.livro}</td>
+                    <td>${dataEmprestimo.toLocaleDateString('pt-BR')}</td>
+                    <td>${statusHTML}</td>
+                    <td>
+                        <button class="btn-renovar" onclick="renovar(${item.id})">Renovar</button>
+                        <button style="background:#ddd; color:#333;" onclick="deletar(${item.id})">Entregar</button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    // Inicializa a tabela ao carregar
+    atualizarTabela();
+</script>
+
+</body>
+</html>
